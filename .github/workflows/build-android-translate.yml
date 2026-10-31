@@ -23,7 +23,9 @@ jobs:
           python-version: "3.12"
 
       - name: Install nanopb generator dependencies
-        run: pip install protobuf grpcio-tools
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q protobuf-compiler
+          pip install protobuf grpcio-tools
 
       - name: Install NDK and CMake
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" "cmake;3.22.1" > /dev/null
