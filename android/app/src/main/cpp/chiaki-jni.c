@@ -226,6 +226,7 @@ JNIEXPORT void JNICALL JNI_FCN(sessionCreate)(JNIEnv *env, jobject obj, jobject 
 	jbyteArray regist_key_array = E->GetObjectField(env, connect_info_obj, E->GetFieldID(env, connect_info_class, "registKey", "[B"));
 	jbyteArray morning_array = E->GetObjectField(env, connect_info_obj, E->GetFieldID(env, connect_info_class, "morning", "[B"));
 	jobject connect_video_profile_obj = E->GetObjectField(env, connect_info_obj, E->GetFieldID(env, connect_info_class, "videoProfile", "L"BASE_PACKAGE"/ConnectVideoProfile;"));
+	jboolean audio_enabled = E->GetBooleanField(env, connect_info_obj, E->GetFieldID(env, connect_info_class, "audioEnabled", "Z"));
 	jclass connect_video_profile_class = E->GetObjectClass(env, connect_video_profile_obj);
 
 	ChiakiConnectInfo connect_info = { 0 };
@@ -349,9 +350,13 @@ JNIEXPORT void JNICALL JNI_FCN(sessionCreate)(JNIEnv *env, jobject obj, jobject 
 	chiaki_session_set_event_cb(&session->session, android_chiaki_event_cb, session);
 	chiaki_session_set_video_sample_cb(&session->session, android_chiaki_video_decoder_video_sample, &session->video_decoder);
 
-	ChiakiAudioSink audio_sink;
-	android_chiaki_audio_decoder_get_sink(&session->audio_decoder, &audio_sink);
-	chiaki_session_set_audio_sink(&session->session, &audio_sink);
+	// Without a sink the session drops audio; translation mode leaves the TV's HDMI audio alone.
+	if(audio_enabled)
+	{
+		ChiakiAudioSink audio_sink;
+		android_chiaki_audio_decoder_get_sink(&session->audio_decoder, &audio_sink);
+		chiaki_session_set_audio_sink(&session->session, &audio_sink);
+	}
 
 beach:
 	if(!session && log)

@@ -3,11 +3,15 @@
 package com.metallic.chiaki.main
 
 import android.app.ActivityOptions
+import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
@@ -25,6 +29,7 @@ import com.metallic.chiaki.manualconsole.EditManualConsoleActivity
 import com.metallic.chiaki.regist.RegistActivity
 import com.metallic.chiaki.settings.SettingsActivity
 import com.metallic.chiaki.stream.StreamActivity
+import com.metallic.chiaki.translate.TranslateService
 
 class MainActivity : AppCompatActivity()
 {
@@ -174,6 +179,34 @@ class MainActivity : AppCompatActivity()
 		}
 	}
 
+	private fun toggleTranslation(connectInfo: ConnectInfo)
+	{
+		if(TranslateService.isRunning)
+		{
+			TranslateService.stop(this)
+			return
+		}
+		if(!Settings.canDrawOverlays(this))
+		{
+			MaterialAlertDialogBuilder(this)
+				.setMessage(R.string.translate_overlay_permission)
+				.setPositiveButton(android.R.string.ok) { _, _ ->
+					try
+					{
+						startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+					}
+					catch(e: ActivityNotFoundException)
+					{
+						// Some TVs hide this screen; the adb command in the message covers them.
+					}
+				}
+				.show()
+			return
+		}
+		TranslateService.start(this, connectInfo)
+		Toast.makeText(this, R.string.translate_started, Toast.LENGTH_LONG).show()
+	}
+
 	private fun hostTriggered(host: DisplayHost)
 	{
 		val registeredHost = host.registeredHost
@@ -181,10 +214,19 @@ class MainActivity : AppCompatActivity()
 		{
 			fun connect() {
 				val connectInfo = ConnectInfo(host.isPS5, host.host, registeredHost.rpRegistKey, registeredHost.rpKey, Preferences(this).videoProfile)
-				Intent(this, StreamActivity::class.java).let {
-					it.putExtra(StreamActivity.EXTRA_CONNECT_INFO, connectInfo)
-					startActivity(it)
-				}
+				val translateAction = if(TranslateService.isRunning) R.string.action_stop_translate else R.string.action_translate
+				MaterialAlertDialogBuilder(this)
+					.setTitle(R.string.translate_mode_title)
+					.setItems(arrayOf(getString(R.string.action_stream), getString(translateAction))) { _, which ->
+						if(which == 1)
+							toggleTranslation(connectInfo)
+						else
+							Intent(this, StreamActivity::class.java).let {
+								it.putExtra(StreamActivity.EXTRA_CONNECT_INFO, connectInfo)
+								startActivity(it)
+							}
+					}
+					.show()
 			}
 
 			if(host is DiscoveredDisplayHost && host.discoveredHost.state == DiscoveryHost.State.STANDBY)

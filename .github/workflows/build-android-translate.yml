@@ -1,0 +1,38 @@
+name: Build Android translate APK
+
+on:
+  push:
+    branches: [translate]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install nanopb generator dependencies
+        run: pip install protobuf grpcio-tools
+
+      - name: Install NDK and CMake
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" "cmake;3.22.1" > /dev/null
+
+      - name: Build release APK
+        working-directory: android
+        run: ./gradlew assembleRelease --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chiaki-translate-apk
+          path: android/app/build/outputs/apk/release/*.apk

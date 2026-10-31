@@ -30,6 +30,9 @@ android {
         targetSdk 35
         versionCode 12
         versionName chiakiVersion
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a' // TVs are ARM; skipping x86 halves build time
+        }
         externalNativeBuild {
             cmake {
                 arguments "-DCHIAKI_ENABLE_TESTS=OFF",
@@ -100,7 +103,8 @@ android {
         signingConfigs.release.keyAlias = properties.get("chiakiKeyAlias")
         signingConfigs.release.keyPassword = properties.get("chiakiKeyPW")
     } else {
-        println("Signing not enabled")
+        println("Signing not enabled, signing release with the debug key")
+        buildTypes.release.signingConfig = signingConfigs.debug
     }
 }
 
@@ -131,6 +135,9 @@ dependencies {
     ksp libs.moshi.kotlin.codegen
 
     implementation libs.oboe
+
+    implementation 'com.google.mlkit:text-recognition:16.0.1'
+    implementation 'com.google.mlkit:translate:17.0.3'
 
     testImplementation 'junit:junit:4.13.2'
 }

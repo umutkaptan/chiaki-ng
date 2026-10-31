@@ -121,4 +121,20 @@
     <string name="preferences_fps_key">stream_fps</string>
     <string name="preferences_bitrate_key">stream_bitrate</string>
     <string name="preferences_codec_key">stream_codec</string>
+
+    <!-- Subtitle translation -->
+    <string name="translate_mode_title">How do you want to connect?</string>
+    <string name="action_stream">Normal stream</string>
+    <string name="action_translate">Translate subtitles</string>
+    <string name="action_stop_translate">Stop translation</string>
+    <string name="translate_started">Translation started. Switch the TV back to the PS5 input.</string>
+    <string name="translate_overlay_permission">Allow \"Display over other apps\" for this app. If the TV has no such setting, run: adb shell appops set com.metallic.chiaki SYSTEM_ALERT_WINDOW allow</string>
+    <string name="translate_channel">Subtitle translation</string>
+    <string name="translate_notification">Translating subtitles</string>
+    <string name="translate_preparing">Preparing translation model…</string>
+    <string name="translate_model_failed">Could not download the translation model. Check the TV\'s internet connection.</string>
+    <string name="translate_connecting">Connecting to PS5…</string>
+    <string name="translate_connection_failed">Could not start Remote Play: %1$s</string>
+    <string name="translate_pin_required">This PS5 profile has a login passcode. Remove it and try again.</string>
+    <string name="translate_connection_lost">Remote Play ended: %1$s</string>
 </resources>
