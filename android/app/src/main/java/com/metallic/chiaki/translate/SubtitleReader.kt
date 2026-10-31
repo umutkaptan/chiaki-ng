@@ -12,13 +12,21 @@ import com.google.mlkit.nl.translate.TranslatorOptions
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import com.metallic.chiaki.BuildConfig
+import org.json.JSONArray
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 
 /**
- * Watches the subtitle band of decoded stream frames, reads English text with ML Kit
- * once the band stops changing, translates it to Turkish on-device and reports the result.
+ * Reads English text from the subtitle band of decoded stream frames with ML Kit and
+ * translates it to Turkish: DeepL when a key was built in, ML Kit on-device otherwise
+ * (and as a fallback when DeepL fails).
  */
 class SubtitleReader(private val onSubtitle: (String) -> Unit)
 {
@@ -27,11 +35,13 @@ class SubtitleReader(private val onSubtitle: (String) -> Unit)
 		private const val TAG = "SubtitleReader"
 		private const val BAND_TOP = 0.70f       // subtitle band, as fractions of frame height
 		private const val BAND_BOTTOM = 0.97f
-		private const val SAMPLE_INTERVAL_MS = 150L
-		private const val CHANGE_THRESHOLD = 4.0 // mean luma difference that counts as a change
-		private const val STABLE_SAMPLES = 2     // samples the band must stay still before OCR
+		private const val SAMPLE_INTERVAL_MS = 400L
+		private const val CHANGE_THRESHOLD = 2.0 // mean luma difference since the last OCR that is worth a new read
 		private const val DIFF_STEP = 4          // pixel step for the cheap change check
+		private const val SAME_TEXT_SIMILARITY = 0.8 // OCR jitter on the same line stays above this
+		private const val EMPTY_READS_TO_CLEAR = 2   // a single failed read over a busy background shouldn't blank the line
 		private const val CACHE_SIZE = 512
+		private const val DEEPL_TIMEOUT_MS = 4000
 	}
 
 	private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
@@ -41,6 +51,8 @@ class SubtitleReader(private val onSubtitle: (String) -> Unit)
 			.setTargetLanguage(TranslateLanguage.TURKISH)
 			.build()
 	)
+	private val deeplKey = BuildConfig.DEEPL_API_KEY
+	private val deeplUrl = if(deeplKey.endsWith(":fx")) "https://api-free.deepl.com/v2/translate" else "https://api.deepl.com/v2/translate"
 	private val worker = Executors.newSingleThreadExecutor()
 	private val busy = AtomicBoolean(false)
 	private val cache = object: LinkedHashMap<String, String>(CACHE_SIZE, 0.75f, true) {
@@ -49,14 +61,13 @@ class SubtitleReader(private val onSubtitle: (String) -> Unit)
 
 	// Touched only from the frame thread.
 	private var lastSampleTime = 0L
-	private var lastBand: IntArray? = null
-	private var stableSamples = 0
-	private var processed = true
+	private var bandAtLastRead: IntArray? = null
 
 	// Touched only from the worker thread.
 	private var lastText = ""
+	private var emptyReads = 0
 
-	/** Downloads the EN→TR model if needed; blocks, so call it off the main thread. */
+	/** Downloads the EN→TR fallback model if needed; blocks, so call it off the main thread. */
 	fun prepare()
 	{
 		Tasks.await(translator.downloadModelIfNeeded(DownloadConditions.Builder().build()))
@@ -66,7 +77,7 @@ class SubtitleReader(private val onSubtitle: (String) -> Unit)
 	fun onFrame(image: Image)
 	{
 		val now = SystemClock.uptimeMillis()
-		if(now - lastSampleTime < SAMPLE_INTERVAL_MS)
+		if(now - lastSampleTime < SAMPLE_INTERVAL_MS || busy.get())
 			return
 		lastSampleTime = now
 
@@ -84,20 +95,14 @@ class SubtitleReader(private val onSubtitle: (String) -> Unit)
 			for(x in 0 until width / DIFF_STEP)
 				band[i++] = buffer.get((top + y * DIFF_STEP) * rowStride + x * DIFF_STEP * pixelStride).toInt() and 0xFF
 
-		val previous = lastBand
-		if(previous == null || previous.size != band.size || meanDifference(previous, band) > CHANGE_THRESHOLD)
-		{
-			stableSamples = 0
-			processed = false
-		}
-		else
-			stableSamples++
-		lastBand = band
-
-		if(processed || stableSamples < STABLE_SAMPLES || !busy.compareAndSet(false, true))
+		// Read again whenever the band changed since the last read; no waiting for a still
+		// picture, since cutscenes keep moving behind the subtitle.
+		val previous = bandAtLastRead
+		if(previous != null && previous.size == band.size && meanDifference(previous, band) <= CHANGE_THRESHOLD)
 			return
-		processed = true
+		bandAtLastRead = band
 
+		busy.set(true)
 		val bitmap = lumaToBitmap(buffer, rowStride, pixelStride, width, top, bottom)
 		worker.execute {
 			try
@@ -126,16 +131,66 @@ class SubtitleReader(private val onSubtitle: (String) -> Unit)
 	{
 		val result = Tasks.await(recognizer.process(InputImage.fromBitmap(bitmap, 0)))
 		val text = joinLines(result.textBlocks.flatMap { it.lines })
-		if(text == lastText)
-			return
-		lastText = text
 		if(text.isEmpty())
 		{
-			onSubtitle("")
+			if(lastText.isNotEmpty() && ++emptyReads >= EMPTY_READS_TO_CLEAR)
+			{
+				lastText = ""
+				onSubtitle("")
+			}
 			return
 		}
-		val translated = cache[text] ?: Tasks.await(translator.translate(text)).also { cache[text] = it }
-		onSubtitle(translated)
+		emptyReads = 0
+		if(similarity(text, lastText) >= SAME_TEXT_SIMILARITY)
+			return
+		val context = lastText
+		lastText = text
+		onSubtitle(cache[text] ?: translate(text, context).also { cache[text] = it })
+	}
+
+	private fun translate(text: String, context: String): String
+	{
+		if(deeplKey.isNotEmpty())
+		{
+			try
+			{
+				return translateWithDeepL(text, context)
+			}
+			catch(e: Exception)
+			{
+				Log.e(TAG, "DeepL failed, using on-device translation", e)
+			}
+		}
+		return Tasks.await(translator.translate(text))
+	}
+
+	private fun translateWithDeepL(text: String, context: String): String
+	{
+		val body = JSONObject()
+			.put("text", JSONArray().put(text))
+			.put("source_lang", "EN")
+			.put("target_lang", "TR")
+		if(context.isNotEmpty())
+			body.put("context", context) // previous line; helps names and tone, not billed
+		val connection = URL(deeplUrl).openConnection() as HttpURLConnection
+		try
+		{
+			connection.requestMethod = "POST"
+			connection.connectTimeout = DEEPL_TIMEOUT_MS
+			connection.readTimeout = DEEPL_TIMEOUT_MS
+			connection.doOutput = true
+			connection.setRequestProperty("Authorization", "DeepL-Auth-Key $deeplKey")
+			connection.setRequestProperty("Content-Type", "application/json")
+			connection.outputStream.use { it.write(body.toString().toByteArray()) }
+			if(connection.responseCode != HttpURLConnection.HTTP_OK)
+				throw IllegalStateException("DeepL HTTP ${connection.responseCode}")
+			val response = connection.inputStream.bufferedReader().use { it.readText() }
+			return JSONObject(response).getJSONArray("translations").getJSONObject(0).getString("text")
+		}
+		finally
+		{
+			connection.disconnect()
+		}
 	}
 
 	private fun joinLines(lines: List<com.google.mlkit.vision.text.Text.Line>): String
@@ -158,6 +213,30 @@ class SubtitleReader(private val onSubtitle: (String) -> Unit)
 		val text = rows.joinToString(" ") { row -> row.sortedBy { it.first }.joinToString(" ") { it.second } }
 			.replace(Regex("\\s+"), " ").trim()
 		return if(text.count { it.isLetter() } >= 2) text else ""
+	}
+
+	/** 1 - normalized Levenshtein distance; 1.0 for identical strings. */
+	private fun similarity(a: String, b: String): Double
+	{
+		if(a == b)
+			return 1.0
+		if(a.isEmpty() || b.isEmpty())
+			return 0.0
+		var prev = IntArray(b.length + 1) { it }
+		var cur = IntArray(b.length + 1)
+		for(i in 1..a.length)
+		{
+			cur[0] = i
+			for(j in 1..b.length)
+			{
+				val cost = if(a[i - 1] == b[j - 1]) 0 else 1
+				cur[j] = min(min(cur[j - 1] + 1, prev[j] + 1), prev[j - 1] + cost)
+			}
+			val swap = prev
+			prev = cur
+			cur = swap
+		}
+		return 1.0 - prev[b.length].toDouble() / max(a.length, b.length)
 	}
 
 	private fun meanDifference(a: IntArray, b: IntArray): Double

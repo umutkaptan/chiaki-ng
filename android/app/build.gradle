@@ -33,6 +33,8 @@ android {
         ndk {
             abiFilters 'armeabi-v7a', 'arm64-v8a' // TVs are ARM; skipping x86 halves build time
         }
+        // Injected by the CI build from a repository secret; empty means on-device translation only.
+        buildConfigField "String", "DEEPL_API_KEY", "\"${System.getenv('DEEPL_API_KEY') ?: ''}\""
         externalNativeBuild {
             cmake {
                 arguments "-DCHIAKI_ENABLE_TESTS=OFF",
@@ -56,6 +58,7 @@ android {
     }
 
     buildFeatures {
+        buildConfig true
         viewBinding true
         prefab true
     }

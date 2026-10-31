@@ -33,6 +33,8 @@ jobs:
       - name: Build release APK
         working-directory: android
         shell: bash
+        env:
+          DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
         run: ./gradlew assembleRelease --stacktrace 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
 
       # Raw logs need a download; annotations are readable straight from the API.

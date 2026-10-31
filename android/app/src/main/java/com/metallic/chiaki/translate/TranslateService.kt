@@ -41,8 +41,8 @@ class TranslateService: Service()
 
 		fun start(context: Context, connectInfo: ConnectInfo)
 		{
-			// 720p/30 is plenty for OCR and keeps the extra stream light on the network.
-			val videoProfile = ConnectVideoProfile.preset(VideoResolutionPreset.RES_720P, VideoFPSPreset.FPS_30, Codec.CODEC_H264)
+			// 1080p keeps small subtitle fonts readable for OCR; 30 fps is plenty.
+			val videoProfile = ConnectVideoProfile.preset(VideoResolutionPreset.RES_1080P, VideoFPSPreset.FPS_30, Codec.CODEC_H264)
 			val info = connectInfo.copy(videoProfile = videoProfile, audioEnabled = false)
 			val intent = Intent(context, TranslateService::class.java).putExtra(EXTRA_CONNECT_INFO, info)
 			ContextCompat.startForegroundService(context, intent)
