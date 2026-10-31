@@ -105,6 +105,14 @@ android {
         signingConfigs.release.storePassword = properties.get("chiakiKeystorePW")
         signingConfigs.release.keyAlias = properties.get("chiakiKeyAlias")
         signingConfigs.release.keyPassword = properties.get("chiakiKeyPW")
+    } else if(System.getenv("TRANSLATE_KEYSTORE")) {
+        // Fixed key from a repository secret, so each CI build installs over the previous one.
+        println("Signing release with TRANSLATE_KEYSTORE")
+        signingConfigs.release.storeFile = file(System.getenv("TRANSLATE_KEYSTORE"))
+        signingConfigs.release.storePassword = "android"
+        signingConfigs.release.keyAlias = "androiddebugkey"
+        signingConfigs.release.keyPassword = "android"
+        buildTypes.release.signingConfig = signingConfigs.release
     } else {
         println("Signing not enabled, signing release with the debug key")
         buildTypes.release.signingConfig = signingConfigs.debug
