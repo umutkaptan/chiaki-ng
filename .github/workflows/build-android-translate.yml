@@ -30,7 +30,29 @@ jobs:
 
       - name: Build release APK
         working-directory: android
-        run: ./gradlew assembleRelease --stacktrace
+        shell: bash
+        run: ./gradlew assembleRelease --stacktrace 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
+
+      # Raw logs need a download; annotations are readable straight from the API.
+      - name: Report build errors as annotations
+        if: failure()
+        working-directory: android
+        shell: python
+        run: |
+          import re
+          lines = open("build.log", errors="replace").read().splitlines()
+          picked, follow = [], 0
+          for line in lines:
+              if re.search(r"^e: |error:|CMake Error|What went wrong|FAILED", line):
+                  picked.append(line)
+                  follow = 8 if re.search(r"What went wrong|CMake Error", line) else 0
+              elif follow > 0:
+                  picked.append(line)
+                  follow -= 1
+          text = "\n".join(picked[:150]) + "\n--- last lines ---\n" + "\n".join(lines[-40:])
+          for i in range(0, min(len(text), 9 * 3500), 3500):
+              chunk = text[i:i + 3500]
+              print("::error::" + chunk.replace("%", "%25").replace("\r", "").replace("\n", "%0A"))
 
       - uses: actions/upload-artifact@v4
         with:
