@@ -32,7 +32,9 @@ class DisplayHostRecyclerViewAdapter(
 	val clickCallback: (DisplayHost) -> Unit,
 	val wakeupCallback: (DisplayHost) -> Unit,
 	val editCallback: (DisplayHost) -> Unit,
-	val deleteCallback: (DisplayHost) -> Unit
+	val deleteCallback: (DisplayHost) -> Unit,
+	val reregisterCallback: (DisplayHost) -> Unit,
+	val unregisterCallback: (DisplayHost) -> Unit
 ): RecyclerView.Adapter<DisplayHostRecyclerViewAdapter.ViewHolder>()
 {
 	var hosts: List<DisplayHost> = listOf()
@@ -101,12 +103,16 @@ class DisplayHostRecyclerViewAdapter(
 					menu.menu.findItem(R.id.action_wakeup).isVisible = canWakeup
 					menu.menu.findItem(R.id.action_edit).isVisible = canEditDelete
 					menu.menu.findItem(R.id.action_delete).isVisible = canEditDelete
+					menu.menu.findItem(R.id.action_reregister).isVisible = canWakeup
+					menu.menu.findItem(R.id.action_unregister).isVisible = canWakeup
 					menu.setOnMenuItemClickListener { menuItem ->
 						when(menuItem.itemId)
 						{
 							R.id.action_wakeup -> wakeupCallback(host)
 							R.id.action_edit -> editCallback(host)
 							R.id.action_delete -> deleteCallback(host)
+							R.id.action_reregister -> reregisterCallback(host)
+							R.id.action_unregister -> unregisterCallback(host)
 							else -> return@setOnMenuItemClickListener false
 						}
 						true

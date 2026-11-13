@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.ServiceInfo
 import android.graphics.ImageFormat
 import android.media.ImageReader
@@ -12,6 +13,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.IBinder
+import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
@@ -25,6 +27,7 @@ import com.metallic.chiaki.lib.*
 /**
  * Opens a hidden Remote Play session (video only, no audio, no input), feeds the decoded
  * frames to [SubtitleReader] and draws the translated line over the TV picture.
+ * Settings changes apply while running; the service stops itself when the session ends.
  */
 class TranslateService: Service()
 {
@@ -34,6 +37,7 @@ class TranslateService: Service()
 		private const val EXTRA_CONNECT_INFO = "connect_info"
 		private const val CHANNEL_ID = "translate"
 		private const val NOTIFICATION_ID = 1
+		private const val STOP_MESSAGE_DURATION_MS = 4000L
 
 		@Volatile
 		var isRunning = false
@@ -54,11 +58,19 @@ class TranslateService: Service()
 		}
 	}
 
+	private val mainHandler = Handler(Looper.getMainLooper())
 	private lateinit var overlay: SubtitleOverlay
 	private var reader: SubtitleReader? = null
 	private var session: Session? = null
 	private var imageReader: ImageReader? = null
 	private var frameThread: HandlerThread? = null
+
+	// Held in a field: SharedPreferences keeps listeners only weakly.
+	private val settingsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+		val settings = TranslateSettings.load(this)
+		overlay.update(settings)
+		reader?.settings = settings
+	}
 
 	override fun onBind(intent: Intent?): IBinder? = null
 
@@ -66,7 +78,8 @@ class TranslateService: Service()
 	{
 		super.onCreate()
 		isRunning = true
-		overlay = SubtitleOverlay(this)
+		overlay = SubtitleOverlay(this, TranslateSettings.load(this))
+		TranslateSettings.preferences(this).registerOnSharedPreferenceChangeListener(settingsListener)
 	}
 
 	override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int
@@ -79,7 +92,8 @@ class TranslateService: Service()
 		overlay.show()
 		overlay.setText(getString(R.string.translate_preparing))
 
-		val subtitleReader = SubtitleReader { overlay.setText(it) }
+		val settings = TranslateSettings.load(this)
+		val subtitleReader = SubtitleReader(settings) { overlay.setText(it) }
 		reader = subtitleReader
 		val thread = HandlerThread("TranslateFrames").also { it.start() }
 		frameThread = thread
@@ -87,14 +101,11 @@ class TranslateService: Service()
 
 		// Model download and session start happen off the main thread.
 		frameHandler.post {
-			try
+			// The on-device model is the engine itself or the fallback for a cloud engine;
+			// only the former can't work without it.
+			if(!subtitleReader.prepare() && settings.engine == TranslateSettings.Engine.ON_DEVICE)
 			{
-				subtitleReader.prepare()
-			}
-			catch(e: Exception)
-			{
-				Log.e(TAG, "Translation model download failed", e)
-				overlay.setText(getString(R.string.translate_model_failed))
+				stopWithMessage(getString(R.string.translate_model_failed))
 				return@post
 			}
 			startSession(connectInfo, frameHandler)
@@ -134,7 +145,7 @@ class TranslateService: Service()
 		catch(e: CreateError)
 		{
 			Log.e(TAG, "Session creation failed", e)
-			overlay.setText(getString(R.string.translate_connection_failed, e.errorCode.toString()))
+			stopWithMessage(getString(R.string.translate_connection_failed, e.errorCode.toString()))
 		}
 	}
 
@@ -143,10 +154,17 @@ class TranslateService: Service()
 		when(event)
 		{
 			is ConnectedEvent -> overlay.setText("")
-			is LoginPinRequestEvent -> overlay.setText(getString(R.string.translate_pin_required))
-			is QuitEvent -> overlay.setText(getString(R.string.translate_connection_lost, event.reasonString ?: event.reason.toString()))
+			is LoginPinRequestEvent -> stopWithMessage(getString(R.string.translate_pin_required))
+			is QuitEvent -> stopWithMessage(getString(R.string.translate_connection_lost, event.reasonString ?: event.reason.toString()))
 			else -> {}
 		}
+	}
+
+	/** Shows why translation ended for a few seconds, then stops the service and removes the overlay. */
+	private fun stopWithMessage(message: String)
+	{
+		overlay.setText(message)
+		mainHandler.postDelayed({ stopSelf() }, STOP_MESSAGE_DURATION_MS)
 	}
 
 	private fun startInForeground()
@@ -166,6 +184,8 @@ class TranslateService: Service()
 	override fun onDestroy()
 	{
 		isRunning = false
+		mainHandler.removeCallbacksAndMessages(null)
+		TranslateSettings.preferences(this).unregisterOnSharedPreferenceChangeListener(settingsListener)
 		session?.let {
 			it.setSurface(null)
 			it.stop()

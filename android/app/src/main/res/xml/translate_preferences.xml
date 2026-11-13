@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <PreferenceCategory app:title="@string/translate_pref_category_engine">
+        <ListPreference
+            app:key="translate_engine"
+            app:title="@string/translate_pref_engine"
+            app:entries="@array/translate_engine_entries"
+            app:entryValues="@array/translate_engine_values"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            app:key="translate_deepl_key"
+            app:title="@string/translate_pref_deepl_key"
+            app:dialogMessage="@string/translate_pref_key_hint" />
+
+        <EditTextPreference
+            app:key="translate_azure_key"
+            app:title="@string/translate_pref_azure_key"
+            app:dialogMessage="@string/translate_pref_key_hint" />
+
+        <EditTextPreference
+            app:key="translate_azure_region"
+            app:title="@string/translate_pref_azure_region"
+            app:dialogMessage="@string/translate_pref_azure_region_hint"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/translate_pref_category_appearance">
+        <SeekBarPreference
+            app:key="translate_text_size"
+            app:title="@string/translate_pref_text_size"
+            app:min="12"
+            android:max="40"
+            app:defaultValue="22"
+            app:showSeekBarValue="true" />
+
+        <ListPreference
+            app:key="translate_text_color"
+            app:title="@string/translate_pref_text_color"
+            app:entries="@array/translate_text_color_entries"
+            app:entryValues="@array/translate_text_color_values"
+            app:defaultValue="#FFFFFF"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:key="translate_background_color"
+            app:title="@string/translate_pref_background_color"
+            app:entries="@array/translate_background_color_entries"
+            app:entryValues="@array/translate_background_color_values"
+            app:defaultValue="#000000"
+            app:useSimpleSummaryProvider="true" />
+
+        <SeekBarPreference
+            app:key="translate_background_opacity"
+            app:title="@string/translate_pref_background_opacity"
+            app:min="0"
+            android:max="100"
+            app:seekBarIncrement="5"
+            app:defaultValue="80"
+            app:showSeekBarValue="true" />
+
+        <SeekBarPreference
+            app:key="translate_bottom_offset"
+            app:title="@string/translate_pref_bottom_offset"
+            app:summary="@string/translate_pref_bottom_offset_summary"
+            app:min="0"
+            android:max="60"
+            app:defaultValue="3"
+            app:showSeekBarValue="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/translate_pref_category_capture">
+        <SwitchPreference
+            app:key="translate_show_capture_area"
+            app:title="@string/translate_pref_show_capture_area"
+            app:summary="@string/translate_pref_show_capture_area_summary"
+            app:defaultValue="false" />
+
+        <SeekBarPreference
+            app:key="translate_capture_left"
+            app:title="@string/translate_pref_capture_left"
+            app:min="0"
+            android:max="95"
+            app:defaultValue="15"
+            app:showSeekBarValue="true" />
+
+        <SeekBarPreference
+            app:key="translate_capture_right"
+            app:title="@string/translate_pref_capture_right"
+            app:min="5"
+            android:max="100"
+            app:defaultValue="85"
+            app:showSeekBarValue="true" />
+
+        <SeekBarPreference
+            app:key="translate_capture_top"
+            app:title="@string/translate_pref_capture_top"
+            app:min="0"
+            android:max="95"
+            app:defaultValue="68"
+            app:showSeekBarValue="true" />
+
+        <SeekBarPreference
+            app:key="translate_capture_bottom"
+            app:title="@string/translate_pref_capture_bottom"
+            app:min="5"
+            android:max="100"
+            app:defaultValue="98"
+            app:showSeekBarValue="true" />
+    </PreferenceCategory>
+</PreferenceScreen>

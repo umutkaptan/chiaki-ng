@@ -65,7 +65,7 @@ class MainActivity : AppCompatActivity()
 		viewModel = ViewModelProvider(this, viewModelFactory { MainViewModel(getDatabase(this), Preferences(this)) })
 			.get(MainViewModel::class.java)
 
-		val recyclerViewAdapter = DisplayHostRecyclerViewAdapter(this::hostTriggered, this::wakeupHost, this::editHost, this::deleteHost)
+		val recyclerViewAdapter = DisplayHostRecyclerViewAdapter(this::hostTriggered, this::wakeupHost, this::editHost, this::deleteHost, this::registerHost, this::unregisterHost)
 		binding.hostsRecyclerView.adapter = recyclerViewAdapter
 		binding.hostsRecyclerView.layoutManager = LinearLayoutManager(this)
 		viewModel.displayHosts.observe(this, Observer {
@@ -247,15 +247,32 @@ class MainActivity : AppCompatActivity()
 				connect()
 		}
 		else
-		{
-			Intent(this, RegistActivity::class.java).let {
-				it.putExtra(RegistActivity.EXTRA_HOST, host.host)
-				it.putExtra(RegistActivity.EXTRA_BROADCAST, false)
-				if(host is ManualDisplayHost)
-					it.putExtra(RegistActivity.EXTRA_ASSIGN_MANUAL_HOST_ID, host.manualHost.id)
-				startActivity(it)
-			}
+			registerHost(host)
+	}
+
+	/** Opens registration for the host; a new registration replaces the old one for the same console. */
+	private fun registerHost(host: DisplayHost)
+	{
+		Intent(this, RegistActivity::class.java).let {
+			it.putExtra(RegistActivity.EXTRA_HOST, host.host)
+			it.putExtra(RegistActivity.EXTRA_BROADCAST, false)
+			if(host is ManualDisplayHost)
+				it.putExtra(RegistActivity.EXTRA_ASSIGN_MANUAL_HOST_ID, host.manualHost.id)
+			startActivity(it)
 		}
+	}
+
+	private fun unregisterHost(host: DisplayHost)
+	{
+		val registeredHost = host.registeredHost ?: return
+		MaterialAlertDialogBuilder(this)
+			.setMessage(getString(R.string.alert_message_unregister, registeredHost.serverNickname ?: host.host))
+			.setPositiveButton(R.string.action_unregister) { _, _ ->
+				viewModel.deleteRegisteredHost(registeredHost)
+			}
+			.setNegativeButton(R.string.action_keep) { _, _ -> }
+			.create()
+			.show()
 	}
 
 	private fun wakeupHost(host: DisplayHost)

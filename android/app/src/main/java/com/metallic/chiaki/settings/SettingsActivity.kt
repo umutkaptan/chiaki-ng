@@ -43,6 +43,10 @@ class SettingsActivity: AppCompatActivity(), PreferenceFragmentCompat.OnPreferen
 			replaceFragment(SettingsRegisteredHostsFragment(), true)
 			true
 		}
+		TranslateSettingsFragment::class.java.canonicalName -> {
+			replaceFragment(TranslateSettingsFragment(), true)
+			true
+		}
 		else -> false
 	}
 

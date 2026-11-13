@@ -53,6 +53,15 @@ class MainViewModel(val database: AppDatabase, val preferences: Preferences): Vi
 		}
 	}
 
+	fun deleteRegisteredHost(registeredHost: RegisteredHost)
+	{
+		viewModelScope.launch(Dispatchers.IO) {
+			try {
+				database.registeredHostDao().delete(registeredHost)
+			} catch(_: Exception) {}
+		}
+	}
+
 	override fun onCleared()
 	{
 		super.onCleared()

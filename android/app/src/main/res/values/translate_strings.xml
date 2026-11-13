@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="translate_pref_title">Subtitle translation</string>
+    <string name="translate_pref_summary">Engine, API keys, subtitle style and capture area</string>
+
+    <string name="translate_pref_category_engine">Translation engine</string>
+    <string name="translate_pref_engine">Engine</string>
+    <string name="translate_pref_deepl_key">DeepL API key</string>
+    <string name="translate_pref_azure_key">Azure Translator key</string>
+    <string name="translate_pref_azure_region">Azure region</string>
+    <string name="translate_pref_azure_region_hint">Region of your Translator resource, e.g. westeurope. Leave empty for a global resource.</string>
+    <string name="translate_pref_key_hint">Tip: the Google TV app on your phone can type or paste into the TV.</string>
+    <string name="translate_pref_key_not_set">Not set</string>
+    <string name="translate_pref_key_set">Set (…%1$s)</string>
+
+    <string name="translate_pref_category_appearance">Subtitle appearance</string>
+    <string name="translate_pref_text_size">Text size</string>
+    <string name="translate_pref_text_color">Text color</string>
+    <string name="translate_pref_background_color">Background color</string>
+    <string name="translate_pref_background_opacity">Background opacity (%)</string>
+    <string name="translate_pref_bottom_offset">Distance from bottom (%)</string>
+    <string name="translate_pref_bottom_offset_summary">Raise this to move the subtitle up the screen</string>
+
+    <string name="translate_pref_category_capture">Capture area (% of the screen)</string>
+    <string name="translate_pref_show_capture_area">Show capture area</string>
+    <string name="translate_pref_show_capture_area_summary">Draws a red frame over the game while translating, so you can see what is being read</string>
+    <string name="translate_pref_capture_left">Left edge</string>
+    <string name="translate_pref_capture_right">Right edge</string>
+    <string name="translate_pref_capture_top">Top edge</string>
+    <string name="translate_pref_capture_bottom">Bottom edge</string>
+
+    <string-array name="translate_engine_entries">
+        <item>On-device (free, offline)</item>
+        <item>DeepL</item>
+        <item>Azure Translator</item>
+    </string-array>
+    <string-array name="translate_engine_values" translatable="false">
+        <item>on_device</item>
+        <item>deepl</item>
+        <item>azure</item>
+    </string-array>
+
+    <string-array name="translate_text_color_entries">
+        <item>White</item>
+        <item>Yellow</item>
+        <item>Cyan</item>
+        <item>Light green</item>
+    </string-array>
+    <string-array name="translate_text_color_values" translatable="false">
+        <item>#FFFFFF</item>
+        <item>#FFEB3B</item>
+        <item>#4DD0E1</item>
+        <item>#AED581</item>
+    </string-array>
+
+    <string-array name="translate_background_color_entries">
+        <item>Black</item>
+        <item>Dark gray</item>
+        <item>Dark blue</item>
+    </string-array>
+    <string-array name="translate_background_color_values" translatable="false">
+        <item>#000000</item>
+        <item>#303030</item>
+        <item>#0D1B3E</item>
+    </string-array>
+
+    <string name="action_reregister">Register again</string>
+    <string name="action_unregister">Remove registration</string>
+    <string name="alert_message_unregister">Remove the registration of %1$s? You will need a new PIN from the console to use it again.</string>
+</resources>

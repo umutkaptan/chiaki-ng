@@ -6,6 +6,13 @@
         app:key="category_general"
         app:title="@string/preferences_category_title_general">
         <Preference
+            app:key="translate_settings"
+            app:title="@string/translate_pref_title"
+            app:summary="@string/translate_pref_summary"
+            app:fragment="com.metallic.chiaki.settings.TranslateSettingsFragment"
+            app:icon="@drawable/ic_display_normal"/>
+
+        <Preference
             app:key="registered_hosts"
             tools:summary="@string/preferences_registered_hosts_summary"
             app:summary=" "
